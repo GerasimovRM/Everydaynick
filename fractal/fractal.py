@@ -5,11 +5,10 @@ from math import cos, pi, sin
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QPen
-from PyQt5.QtWidgets import QWidget, QApplication, QPushButton, QInputDialog
+from PyQt5.QtWidgets import QWidget, QApplication, QPushButton, QInputDialog, QFileDialog
 
 SCREEN_SIZE = [500, 500]
 # Задаём длину стороны и количество углов
-
 
 
 class Fractal:
@@ -17,14 +16,34 @@ class Fractal:
         with open(filename, "r") as f:
             self.side = int(f.readline())
             self.angle = int(f.readline())
-            self.init = f.readline()
-            self.exp = f.readline()
+            self.init = f.readline().strip()
+            self.exps = list(map(str.strip, f.readlines()))
+
+    def calculate_epochs(self, n):
+        parse_exps = []
+        for exp in self.exps:
+            parse_exps.append(exp.split("->"))
+        # print(parse_exps)
+        result = self.init
+        for _ in range(n):
+            for exp in parse_exps:
+                if exp[0] in result:
+                    result = result.replace(exp[0], exp[1])
+        return result
 
 
-class DrawStar(QWidget):
+
+
+class DrawFractal(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.fractal = Fractal(QFileDialog.getOpenFileName(self,
+                                                           "Выбеите фрактал",
+                                                           "")[0])
+        # print(self.fractal.calculate_epochs(1))
+        # print(self.fractal.exps, self.fractal.init)
+
 
     def initUI(self):
         self.setGeometry(300, 300, *SCREEN_SIZE)
@@ -44,7 +63,7 @@ class DrawStar(QWidget):
         if self.do_paint:
             qp = QPainter()
             qp.begin(self)
-            self.draw_fractal()
+            self.draw_fractal(qp)
             qp.end()
 
     def xs(self, x):
@@ -54,7 +73,23 @@ class DrawStar(QWidget):
         return SCREEN_SIZE[1] // 2 - y
 
     def draw_fractal(self, qp):
-        pass
+        current_x, current_y = 0, 0
+        fractal = self.fractal.calculate_epochs(3)
+        angle = 0
+        for sym in fractal:
+            if sym == 'f' or sym == "F":
+                new_x = current_x + self.fractal.side * cos(angle * pi / 180)
+                new_y = current_y + self.fractal.side * sin(angle * pi / 180)
+                if sym == "F":
+                    qp.drawLine(self.xs(current_x),
+                                self.ys(current_y),
+                                self.xs(new_x),
+                                self.ys(new_y))
+                current_x, current_y = new_x, new_y
+            elif sym == "-":
+                angle += self.fractal.angle
+            elif sym == "+":
+                angle -= self.fractal.angle
 
 
 
@@ -64,6 +99,6 @@ sys.excepthook = except_hook
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = DrawStar()
+    ex = DrawFractal()
     ex.show()
     sys.exit(app.exec())
